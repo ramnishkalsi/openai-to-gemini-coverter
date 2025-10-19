@@ -2,7 +2,7 @@
 
 # --- Configuration ---
 VENV_DIR="venv"
-PYTHON_SCRIPT="scripts/replicate_chats.py"
+PYTHON_SCRIPT="main.py"
 REQUIREMENTS_FILE="requirements.txt"
 
 # --- Script Start ---
