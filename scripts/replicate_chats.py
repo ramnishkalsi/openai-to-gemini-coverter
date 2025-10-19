@@ -2,35 +2,44 @@ import json
 import os
 import argparse
 import re
+import google.generativeai as genai
 from typing import List, Dict, Any
+
 
 def get_project_name(title: str) -> str:
     """Extracts the project name from the conversation title."""
-    # Case-insensitive search for project keywords
     match = re.search(r"^(Project:|Project |\[Project\]) (.*)", title, re.IGNORECASE)
     if match:
         return match.group(2).strip()
 
-    # Look for titles with a clear project-like structure, e.g., "Project - Subproject"
     if ' - ' in title:
         return title.split(' - ')[0].strip()
 
     return "General"
 
+def generate_summary(conversation: Dict[str, Any]) -> str:
+    """Generates a summary of the conversation using the Gemini API."""
+    if not os.environ.get("GEMINI_API_KEY"):
+        print("⚠️  GEMINI_API_KEY environment variable not set. Skipping summary generation.")
+        return ""
+
+    print(f"Generating summary for conversation: {conversation['title']}")
+    try:
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-pro')
+        chat_history = "\n".join([f"{msg['role']}: {msg['parts'][0]['text']}" for msg in conversation['history']])
+        prompt = f"Please provide a one-paragraph summary of the following conversation:\n\n{chat_history}"
+        response = model.generate_content(prompt)
+        summary = response.text
+        print(f"Summary for '{conversation['title']}': {summary}")
+        return summary
+    except Exception as e:
+        print(f"Could not generate summary for conversation '{conversation['title']}': {e}")
+        return ""
+
 def parse_conversation(convo_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Parses a single conversation dictionary from ChatGPT's export.
-
-    The messages are stored in a graph-like structure. This function
-    traverses it backwards from the last message to reconstruct the
-    chronological order.
-
-    Args:
-        convo_data: The dictionary for a single conversation.
-
-    Returns:
-        A dictionary containing the conversation's title and an ordered
-        list of messages in Gemini API format.
     """
     ordered_messages = []
     current_node_id = convo_data.get("current_node")
@@ -73,12 +82,6 @@ def parse_conversation(convo_data: Dict[str, Any]) -> Dict[str, Any]:
 def process_chatgpt_export(input_dir: str) -> List[Dict[str, Any]]:
     """
     Finds and processes the conversations.json file from the export directory.
-
-    Args:
-        input_dir: The path to the unzipped ChatGPT export folder.
-
-    Returns:
-        A list of all parsed conversations.
     """
     json_path = os.path.join(input_dir, "conversations.json")
 
@@ -104,8 +107,9 @@ def process_chatgpt_export(input_dir: str) -> List[Dict[str, Any]]:
     print(f"migrated_conversations={len(processed_conversations)}")
     return processed_conversations
 
-def save_conversations_by_project(conversations: List[Dict[str, Any]], output_dir: str):
+def save_conversations_by_project(conversations: List[Dict[str, Any]], output_dir: str, summarize: bool):
     """Saves all conversations to a structured JSON file."""
+    print(f"Summarize flag: {summarize}")
     projects = {}
     for convo in conversations:
         project_name = get_project_name(convo['title'])
@@ -116,6 +120,12 @@ def save_conversations_by_project(conversations: List[Dict[str, Any]], output_di
     for project_name, convos in projects.items():
         project_dir = os.path.join(output_dir, project_name)
         os.makedirs(project_dir, exist_ok=True)
+
+        if summarize:
+            print("Summarizing conversations...")
+            for convo in convos:
+                convo['summary'] = generate_summary(convo)
+
         output_path = os.path.join(project_dir, "conversations.json")
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(convos, f, indent=2)
@@ -134,6 +144,11 @@ def main():
         default="gemini_projects",
         help="Path to save the output projects. (e.g., my_projects)",
     )
+    parser.add_argument(
+        "--summarize",
+        action="store_true",
+        help="Generate a summary for each conversation.",
+    )
     args = parser.parse_args()
 
     processed_data = process_chatgpt_export(args.input_dir)
@@ -142,7 +157,7 @@ def main():
         print("No conversations were processed. Exiting.")
         return
 
-    save_conversations_by_project(processed_data, args.output_dir)
+    save_conversations_by_project(processed_data, args.output_dir, args.summarize)
 
 if __name__ == "__main__":
     main()

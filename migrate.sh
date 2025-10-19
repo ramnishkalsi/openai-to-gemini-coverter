@@ -16,7 +16,7 @@ if [ -z "$1" ]; then
 fi
 
 INPUT_DIR="$1"
-OUTPUT_DIR=${2:-gemini_projects}
+shift
 
 # 2. Check if the input directory exists.
 if [ ! -d "$INPUT_DIR" ]; then
@@ -47,8 +47,12 @@ fi
 echo "🚀 Running the Python script to process your data..."
 echo "----------------------------------------------------"
 
-MIGRATED_CONVERSATIONS=$(python "$PYTHON_SCRIPT" "$INPUT_DIR" --output_dir "$OUTPUT_DIR" | grep "migrated_conversations=" | cut -d '=' -f 2)
+MIGRATED_CONVERSATIONS=$(python "$PYTHON_SCRIPT" "$INPUT_DIR" "$@" | tee /dev/tty | grep "migrated_conversations=" | cut -d '=' -f 2)
 
+OUTPUT_DIR="gemini_projects"
+if [[ "$@" == *"--output_dir"* ]]; then
+  OUTPUT_DIR=$(echo "$@" | awk -F'--output_dir ' '{print $2}' | awk '{print $1}')
+fi
 
 echo "----------------------------------------------------"
 echo "✅ All done!"
