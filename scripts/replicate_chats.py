@@ -1,7 +1,21 @@
 import json
 import os
 import argparse
+import re
 from typing import List, Dict, Any
+
+def get_project_name(title: str) -> str:
+    """Extracts the project name from the conversation title."""
+    # Case-insensitive search for project keywords
+    match = re.search(r"^(Project:|Project |\[Project\]) (.*)", title, re.IGNORECASE)
+    if match:
+        return match.group(2).strip()
+
+    # Look for titles with a clear project-like structure, e.g., "Project - Subproject"
+    if ' - ' in title:
+        return title.split(' - ')[0].strip()
+
+    return "General"
 
 def parse_conversation(convo_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -90,11 +104,22 @@ def process_chatgpt_export(input_dir: str) -> List[Dict[str, Any]]:
     print(f"migrated_conversations={len(processed_conversations)}")
     return processed_conversations
 
-def save_as_json(conversations: List[Dict[str, Any]], output_path: str):
+def save_conversations_by_project(conversations: List[Dict[str, Any]], output_dir: str):
     """Saves all conversations to a structured JSON file."""
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(conversations, f, indent=2)
-    print(f"💾 Successfully saved structured JSON output to: {output_path}")
+    projects = {}
+    for convo in conversations:
+        project_name = get_project_name(convo['title'])
+        if project_name not in projects:
+            projects[project_name] = []
+        projects[project_name].append(convo)
+
+    for project_name, convos in projects.items():
+        project_dir = os.path.join(output_dir, project_name)
+        os.makedirs(project_dir, exist_ok=True)
+        output_path = os.path.join(project_dir, "conversations.json")
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(convos, f, indent=2)
+        print(f"💾 Successfully saved {len(convos)} conversations for project '{project_name}' to: {output_path}")
 
 def main():
     """Main function to run the script from the command line."""
@@ -105,9 +130,9 @@ def main():
         "input_dir", help="Path to the unzipped ChatGPT export directory."
     )
     parser.add_argument(
-        "--output_file",
-        default="gemini_archive.json",
-        help="Path to save the output as a structured .json file. (e.g., output.json)",
+        "--output_dir",
+        default="gemini_projects",
+        help="Path to save the output projects. (e.g., my_projects)",
     )
     args = parser.parse_args()
 
@@ -117,7 +142,7 @@ def main():
         print("No conversations were processed. Exiting.")
         return
 
-    save_as_json(processed_data, args.output_file)
+    save_conversations_by_project(processed_data, args.output_dir)
 
 if __name__ == "__main__":
     main()

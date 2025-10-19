@@ -16,6 +16,7 @@ if [ -z "$1" ]; then
 fi
 
 INPUT_DIR="$1"
+OUTPUT_DIR=${2:-gemini_projects}
 
 # 2. Check if the input directory exists.
 if [ ! -d "$INPUT_DIR" ]; then
@@ -46,9 +47,8 @@ fi
 echo "🚀 Running the Python script to process your data..."
 echo "----------------------------------------------------"
 
-MIGRATED_CONVERSATIONS=$(python "$PYTHON_SCRIPT" "$@" | grep "migrated_conversations=" | cut -d '=' -f 2)
+MIGRATED_CONVERSATIONS=$(python "$PYTHON_SCRIPT" "$INPUT_DIR" --output_dir "$OUTPUT_DIR" | grep "migrated_conversations=" | cut -d '=' -f 2)
 
-OUTPUT_FILE=${2:-gemini_archive.json}
 
 echo "----------------------------------------------------"
 echo "✅ All done!"
@@ -57,7 +57,7 @@ echo ""
 echo "SUMMARY"
 echo "======="
 echo "Input directory: $INPUT_DIR"
-echo "Output file: $OUTPUT_FILE"
+echo "Output directory: $OUTPUT_DIR"
 echo "Conversations migrated: $MIGRATED_CONVERSATIONS"
 
 # The script will automatically deactivate the venv upon exit.
