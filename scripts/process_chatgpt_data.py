@@ -92,7 +92,8 @@ def process_chatgpt_export(input_dir: str) -> List[Dict[str, Any]]:
         if convo.get("mapping") # Ensure the conversation has messages
     ]
 
-    print("✅ Parsing complete.")
+    print(f"✅ Parsing complete.")
+    print(f"migrated_conversations={len(processed_conversations)}")
     return processed_conversations
 
 def save_as_text(conversations: List[Dict[str, Any]], output_path: str):

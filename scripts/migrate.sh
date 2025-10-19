@@ -2,7 +2,6 @@
 
 # --- Configuration ---
 VENV_DIR="venv"
-# Updated path to point to the script inside the 'scripts' folder
 PYTHON_SCRIPT="scripts/process_chatgpt_data.py"
 REQUIREMENTS_FILE="requirements.txt"
 DEFAULT_TXT_OUTPUT="chatgpt_export.txt"
@@ -14,7 +13,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 # 1. Input Validation: Check if an input directory was provided.
 if [ -z "$1" ]; then
   echo "❌ Error: No input directory specified."
-  echo "Usage: ./run.sh /path/to/your/chatgpt-export-folder"
+  echo "Usage: ./scripts/migrate.sh /path/to/your/chatgpt-export-folder"
   exit 1
 fi
 
@@ -49,9 +48,18 @@ fi
 echo "🚀 Running the Python script to process your data..."
 echo "----------------------------------------------------"
 
-python "$PYTHON_SCRIPT" "$INPUT_DIR" --txt "$DEFAULT_TXT_OUTPUT" --json "$DEFAULT_JSON_OUTPUT"
+MIGRATED_CONVERSATIONS=$(python "$PYTHON_SCRIPT" "$INPUT_DIR" --txt "$DEFAULT_TXT_OUTPUT" --json "$DEFAULT_JSON_OUTPUT" | grep "migrated_conversations=" | cut -d '=' -f 2)
 
 echo "----------------------------------------------------"
 echo "✅ All done!"
+
+echo ""
+echo "SUMMARY"
+echo "======="
+echo "Input directory: $INPUT_DIR"
+echo "Output files:"
+echo "  - $DEFAULT_TXT_OUTPUT"
+echo "  - $DEFAULT_JSON_OUTPUT"
+echo "Conversations migrated: $MIGRATED_CONVERSATIONS"
 
 # The script will automatically deactivate the venv upon exit.
