@@ -17,15 +17,19 @@ def get_project_name(title: str) -> str:
 
     return "General"
 
-def generate_summary(conversation: Dict[str, Any]) -> str:
+def generate_summary(conversation: Dict[str, Any], api_key: str) -> str:
     """Generates a summary of the conversation using the Gemini API."""
-    if not os.environ.get("GEMINI_API_KEY"):
-        print("⚠️  GEMINI_API_KEY environment variable not set. Skipping summary generation.")
+    if not api_key and not os.environ.get("GEMINI_API_KEY"):
+        print("⚠️  GEMINI_API_KEY environment variable or --api_key flag not set. Skipping summary generation.")
         return ""
+
+    if api_key:
+        genai.configure(api_key=api_key)
+    else:
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
     print(f"Generating summary for conversation: {conversation['title']}")
     try:
-        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-pro')
         chat_history = "\n".join([f"{msg['role']}: {msg['parts'][0]['text']}" for msg in conversation['history']])
         prompt = f"Please provide a one-paragraph summary of the following conversation:\n\n{chat_history}"
@@ -107,7 +111,7 @@ def process_chatgpt_export(input_dir: str) -> List[Dict[str, Any]]:
     print(f"migrated_conversations={len(processed_conversations)}")
     return processed_conversations
 
-def save_conversations_by_project(conversations: List[Dict[str, Any]], output_dir: str, summarize: bool):
+def save_conversations_by_project(conversations: List[Dict[str, Any]], output_dir: str, summarize: bool, api_key: str, gem_template: str):
     """Saves all conversations to a structured JSON file."""
     print(f"Summarize flag: {summarize}")
     projects = {}
@@ -124,7 +128,22 @@ def save_conversations_by_project(conversations: List[Dict[str, Any]], output_di
         if summarize:
             print("Summarizing conversations...")
             for convo in convos:
-                convo['summary'] = generate_summary(convo)
+                convo['summary'] = generate_summary(convo, api_key)
+
+        if gem_template:
+            with open(gem_template, "r") as f:
+                template = f.read()
+
+            for convo in convos:
+                gem_content = template.replace("{{project_name}}", project_name)
+                gem_content = gem_content.replace("{{summary}}", convo.get('summary', ''))
+                chat_history = "\n".join([f"**{msg['role']}**: {msg['parts'][0]['text']}" for msg in convo['history']])
+                gem_content = gem_content.replace("{{conversations}}", chat_history)
+
+                gem_path = os.path.join(project_dir, f"{re.sub(r'[/\\?%*:|\"<>]', '_', convo['title'])}")
+                with open(gem_path, "w") as f:
+                    f.write(gem_content)
+                print(f"💾 Successfully saved Gem file for '{convo['title']}' to: {gem_path}")
 
         output_path = os.path.join(project_dir, "conversations.json")
         with open(output_path, "w", encoding="utf-8") as f:
@@ -149,6 +168,14 @@ def main():
         action="store_true",
         help="Generate a summary for each conversation.",
     )
+    parser.add_argument(
+        "--api_key",
+        help="Your Gemini API key.",
+    )
+    parser.add_argument(
+        "--gem_template",
+        help="Path to the Gem template file.",
+    )
     args = parser.parse_args()
 
     processed_data = process_chatgpt_export(args.input_dir)
@@ -157,7 +184,7 @@ def main():
         print("No conversations were processed. Exiting.")
         return
 
-    save_conversations_by_project(processed_data, args.output_dir, args.summarize)
+    save_conversations_by_project(processed_data, args.output_dir, args.summarize, args.api_key, args.gem_template)
 
 if __name__ == "__main__":
     main()
