@@ -21,3 +21,7 @@ This will:
 *   Install any dependencies from `requirements.txt`.
 *   Run the `scripts/process_chatgpt_data.py` script.
 *   Generate `chatgpt_export.txt` and `chatgpt_export.json` in the project root.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a pull request.
