@@ -2,10 +2,8 @@
 
 # --- Configuration ---
 VENV_DIR="venv"
-PYTHON_SCRIPT="scripts/process_chatgpt_data.py"
+PYTHON_SCRIPT="scripts/replicate_chats.py"
 REQUIREMENTS_FILE="requirements.txt"
-DEFAULT_TXT_OUTPUT="chatgpt_export.txt"
-DEFAULT_JSON_OUTPUT="chatgpt_export.json"
 
 # --- Script Start ---
 set -e # Exit immediately if a command exits with a non-zero status.
@@ -13,7 +11,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 # 1. Input Validation: Check if an input directory was provided.
 if [ -z "$1" ]; then
   echo "❌ Error: No input directory specified."
-  echo "Usage: ./scripts/migrate.sh /path/to/your/chatgpt-export-folder"
+  echo "Usage: ./migrate.sh /path/to/your/chatgpt-export-folder"
   exit 1
 fi
 
@@ -48,7 +46,9 @@ fi
 echo "🚀 Running the Python script to process your data..."
 echo "----------------------------------------------------"
 
-MIGRATED_CONVERSATIONS=$(python "$PYTHON_SCRIPT" "$INPUT_DIR" --txt "$DEFAULT_TXT_OUTPUT" --json "$DEFAULT_JSON_OUTPUT" | grep "migrated_conversations=" | cut -d '=' -f 2)
+MIGRATED_CONVERSATIONS=$(python "$PYTHON_SCRIPT" "$@" | grep "migrated_conversations=" | cut -d '=' -f 2)
+
+OUTPUT_FILE=${2:-gemini_archive.json}
 
 echo "----------------------------------------------------"
 echo "✅ All done!"
@@ -57,9 +57,7 @@ echo ""
 echo "SUMMARY"
 echo "======="
 echo "Input directory: $INPUT_DIR"
-echo "Output files:"
-echo "  - $DEFAULT_TXT_OUTPUT"
-echo "  - $DEFAULT_JSON_OUTPUT"
+echo "Output file: $OUTPUT_FILE"
 echo "Conversations migrated: $MIGRATED_CONVERSATIONS"
 
 # The script will automatically deactivate the venv upon exit.
